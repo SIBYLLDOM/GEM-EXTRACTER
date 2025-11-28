@@ -1,0 +1,8 @@
+playwright
+pandas
+requests
+pdfplumber
+pytesseract
+PyPDF2
+tqdm
+pillow

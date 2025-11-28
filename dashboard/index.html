@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Meril Tender Extraction — Dashboard</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root{
+      --bg:#f5f9ff;
+      --panel:#ffffff;
+      --accent:#0b66ff;
+      --accent-2:#0b9bff;
+      --muted:#6b7280;
+      --glass: rgba(11,102,255,0.06);
+      --surface-shadow: 0 10px 30px rgba(11,102,255,0.06);
+      --radius:14px;
+    }
+
+    *{box-sizing:border-box; margin:0; padding:0;}
+
+    html,body{
+      width:100%;
+      height:100%;
+      overflow:hidden;  /* 🚫 NO SCROLL */
+      font-family:Inter,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;
+      background:var(--bg);
+    }
+
+    /* --- FIXED TOP BAR --- */
+    header.appbar{
+      height:70px;
+      background:white;
+      border-bottom:1px solid rgba(0,0,0,0.06);
+      display:flex;
+      align-items:center;
+      padding:0 28px;
+      gap:20px;
+      flex-shrink:0;
+    }
+
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:14px;
+    }
+    .brand h1{
+      font-size:18px;
+      color:var(--accent);
+      margin:0;
+    }
+    .tag{font-size:13px;color:var(--muted);}
+
+    /* --- MAIN FIXED CONTAINER --- */
+    main{
+      height:calc(100vh - 70px);
+      padding:20px 28px;
+      display:flex;
+      justify-content:space-between;
+      gap:20px;
+      overflow:hidden; /* 🚫 no scroll */
+    }
+
+    /* LEFT PANEL */
+    .left{
+      flex:1.2;
+      display:flex;
+      flex-direction:column;
+      gap:18px;
+      min-width:0;
+    }
+
+    /* RIGHT PANEL */
+    .right{
+      width:420px;
+      display:flex;
+      flex-direction:column;
+      gap:18px;
+      flex-shrink:0;
+    }
+
+    .panel{
+      background:var(--panel);
+      border-radius:var(--radius);
+      box-shadow:var(--surface-shadow);
+      padding:16px;
+      display:flex;
+      flex-direction:column;
+      min-height:0; /* required to shrink inside flex */
+    }
+
+    .section-title{
+      font-weight:800;
+      color:#07214b;
+      margin-bottom:10px;
+      font-size:15px;
+    }
+
+    .kpis{
+      display:flex;
+      gap:14px;
+      flex-wrap:nowrap;
+    }
+
+    .kpi{
+      flex:1;
+      background:#f8fbff;
+      padding:12px;
+      border-radius:12px;
+    }
+
+    .label{font-size:13px;color:var(--muted);}
+    .value{font-size:28px;font-weight:800;color:#08326b;margin-top:6px;}
+
+    .progress{height:14px;background:#eaf3ff;border-radius:999px;overflow:hidden;margin-top:8px;}
+    .bar{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-2));width:0%;}
+
+    /* TIMELINE — NO SCROLL — auto shrink */
+    .timeline{
+      display:flex;
+      flex-direction:column-reverse;
+      gap:12px;
+      flex:1;
+      min-height:0;
+      overflow:hidden;  /* 🚫 */
+    }
+    .titem{
+      display:flex;
+      gap:10px;
+      flex-shrink:1;
+      min-height:0;
+    }
+    .dot{
+      width:10px;height:10px;background:var(--accent);border-radius:50%;margin-top:6px;
+      flex-shrink:0;
+    }
+    .tcontent{
+      background:#fbfdff;
+      border:1px solid rgba(0,0,0,0.03);
+      padding:10px;
+      border-radius:10px;
+      font-size:13px;
+      flex:1;
+      min-height:0;
+    }
+    .tmeta{font-size:11px;color:var(--muted);margin-bottom:4px;}
+
+    /* MESSAGES — NO SCROLL */
+    .messages{
+      font-family:monospace;
+      font-size:12px;
+      background:#f1f7ff;
+      padding:12px;
+      border-radius:10px;
+      color:#073b6a;
+      flex:1;
+      min-height:0;
+      overflow:hidden; /* 🚫 */
+      white-space:pre-wrap;
+    }
+
+  </style>
+</head>
+<body>
+
+  <!-- TOP BAR -->
+  <header class="appbar">
+      <svg width="42" height="42" viewBox="0 0 24 24" fill="none">
+        <rect width="24" height="24" rx="6" fill="#0b66ff"></rect>
+        <path d="M7 12h10M7 7h10M7 17h10" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+
+      <div>
+        <h1>Meril Tender Extraction</h1>
+        <div class="tag">Real-time extraction dashboard</div>
+      </div>
+
+      <div style="margin-left:auto;font-size:14px;color:#08326b">
+        Status: <strong id="stage_small">IDLE</strong>
+      </div>
+  </header>
+
+  <!-- CONTENT AREA -->
+  <main>
+
+    <!-- LEFT SIDE -->
+    <div class="left">
+
+      <!-- STATUS -->
+      <div class="panel" style="flex:0.8">
+        <div class="section-title">Overall status</div>
+
+        <div style="font-weight:700;font-size:16px;color:#07214b" id="message">Waiting to start…</div>
+        <div class="label" style="margin-top:4px">FullData JSON: <span id="full_data_path">—</span></div>
+
+        <div class="kpis" style="margin-top:14px">
+          <div class="kpi">
+            <div class="label">Scraped records</div>
+            <div id="scraped" class="value">0</div>
+            <div class="label">Pages: <span id="scraped_pages">0</span></div>
+          </div>
+          <div class="kpi">
+            <div class="label">PDFs downloaded</div>
+            <div id="download_done" class="value">0</div>
+            <div class="label">of <span id="download_total">0</span></div>
+            <div class="progress"><div id="download_bar" class="bar"></div></div>
+          </div>
+          <div class="kpi">
+            <div class="label">JSONs extracted</div>
+            <div id="extract_done" class="value">0</div>
+            <div class="label">of <span id="extract_total">0</span></div>
+            <div class="progress"><div id="extract_bar" class="bar"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MESSAGES -->
+      <div class="panel" style="flex:1.2">
+        <div class="section-title">Messages / Errors</div>
+        <pre id="messages" class="messages">No messages yet.</pre>
+      </div>
+    </div>
+
+    <!-- RIGHT SIDE -->
+    <div class="right">
+
+      <!-- TIMELINE -->
+      <div class="panel" style="flex:1">
+        <div class="section-title">Live timeline</div>
+        <div id="timeline" class="timeline">
+          <div class="titem">
+            <div class="dot"></div>
+            <div class="tcontent">
+              <div class="tmeta">No activity yet</div>
+              <div>No logs yet.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- QUICK -->
+      <div class="panel" style="flex:0.4">
+        <div class="section-title">Debug links</div>
+        <a href="./status.json" style="color:var(--accent);font-weight:700">Open status.json</a>
+      </div>
+
+    </div>
+
+  </main>
+
+  <script>
+    const statusUrl="./status.json";
+    let lastHash="";
+
+    function hash(arr){return arr?arr.join("|").slice(-2000):"";}
+    function now(){return new Date().toLocaleTimeString();}
+
+    function makeItem(txt){
+      const d=document.createElement("div");
+      d.className="titem";
+      d.innerHTML=`<div class="dot"></div>
+      <div class="tcontent">
+        <div class="tmeta">[${now()}]</div>
+        <div>${txt}</div>
+      </div>`;
+      return d;
+    }
+
+    async function poll(){
+      try{
+        const r=await fetch(statusUrl+"?t="+Date.now());
+        const s=await r.json();
+
+        document.getElementById("stage_small").textContent=(s.stage||"IDLE").toUpperCase();
+        document.getElementById("message").textContent=s.message||"";
+        document.getElementById("scraped").textContent=s.scraped_records||0;
+        document.getElementById("scraped_pages").textContent=s.scraped_pages||0;
+        document.getElementById("download_total").textContent=s.download_total||0;
+        document.getElementById("download_done").textContent=s.download_done||0;
+        document.getElementById("extract_total").textContent=s.extract_total||0;
+        document.getElementById("extract_done").textContent=s.extract_done||0;
+        document.getElementById("full_data_path").textContent=s.full_data_path||"—";
+
+        // bars
+        let dP = (s.download_total ? (s.download_done/s.download_total)*100 : (s.stage==='done'?100:0));
+        let eP = (s.extract_total ? (s.extract_done/s.extract_total)*100 : (s.stage==='done'?100:0));
+        document.getElementById("download_bar").style.width=dP+"%";
+        document.getElementById("extract_bar").style.width=eP+"%";
+
+        // messages
+        const msgs=[];
+        if(s.errors) msgs.push(...s.errors.slice(-10));
+        if(s.message) msgs.unshift(s.message);
+        document.getElementById("messages").textContent=msgs.join("\n")||"No data.";
+
+        // timeline
+        const logs=s.log||[s.message];
+        const h=hash(logs);
+        if(h!==lastHash){
+          lastHash=h;
+          const t=document.getElementById("timeline");
+          t.innerHTML="";
+          logs.slice(-12).forEach(l=>{ t.appendChild(makeItem(l)); });
+        }
+      }catch(e){}
+    }
+
+    setInterval(poll,800);
+    poll();
+  </script>
+
+</body>
+</html>
