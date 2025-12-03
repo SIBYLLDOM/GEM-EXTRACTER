@@ -1,0 +1,21 @@
+UPDATE bids
+SET 
+    todayscan = 0,
+    status = 'new',
+    attempts = 0,
+    error_count = 0,
+    pdf_path = NULL,
+    json_path = NULL,
+    parse_confidence = NULL,
+    processed_at = NULL,
+    locked_by = NULL;
+
+
+docker exec -it gem_redis redis-cli FLUSHALL
+
+cd "C:\Users\rexro\OneDrive\Desktop\TENDER\DYNAMIC EXTRACTER\dashboard"
+python app.py
+
+cd "C:\Users\rexro\OneDrive\Desktop\TENDER\DYNAMIC EXTRACTER"
+python master_gem_extraction.py --workers 4 --batch 100
+

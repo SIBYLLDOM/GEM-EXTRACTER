@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Meril Tender Extraction — Dashboard</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root{
+      --bg:#f5f9ff; --panel:#fff; --accent:#0b66ff; --accent-2:#0b9bff; --muted:#6b7280;
+      --card-shadow: 0 12px 30px rgba(11,102,255,0.06); --radius:12px;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%;overflow:hidden;font-family:Inter,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;background:var(--bg);color:#0b2447}
+
+    /* Top bar */
+    header.appbar{height:70px;display:flex;align-items:center;gap:18px;padding:0 20px;background:#fff;border-bottom:1px solid rgba(11,102,255,0.06)}
+    .brand{display:flex;align-items:center;gap:12px}
+    .brand h1{font-size:18px;color:var(--accent);margin:0;font-weight:800}
+    .brand .tag{font-size:13px;color:var(--muted)}
+
+    .nav-actions{margin-left:auto;display:flex;align-items:center;gap:12px}
+    .btn{background:var(--accent);color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:700}
+    .btn.secondary{background:#eef6ff;color:var(--accent);border:1px solid rgba(11,102,255,0.08)}
+    .status-small{font-size:13px;color:#08326b}
+
+    /* Layout */
+    main{height:calc(100vh - 70px);padding:18px 20px;display:flex;gap:20px}
+    .left{flex:1;display:flex;flex-direction:column;gap:16px;min-width:0}
+    .right{width:420px;display:flex;flex-direction:column;gap:16px;flex-shrink:0}
+
+    .panel{background:var(--panel);border-radius:var(--radius);box-shadow:var(--card-shadow);padding:16px;display:flex;flex-direction:column;min-height:0}
+    .section-title{font-weight:800;color:#07214b;margin-bottom:10px;font-size:14px}
+    .muted{color:var(--muted)}
+
+    /* KPIs */
+    .kpis{display:flex;gap:12px}
+    .kpi{flex:1;background:#f8fbff;padding:12px;border-radius:10px}
+    .kpi .label{font-size:12px;color:var(--muted)}
+    .kpi .value{font-size:26px;font-weight:800;color:#08326b;margin-top:6px}
+    .progress{height:12px;background:#eaf3ff;border-radius:999px;overflow:hidden;margin-top:10px}
+    .bar{height:100%;background:linear-gradient(90deg,var(--accent),#4da6ff);width:0%}
+
+    /* Timeline */
+    .panel.timeline-panel{padding:12px}
+    .timeline{display:flex;flex-direction:column-reverse;gap:10px;min-height:0;overflow:auto;padding-right:6px}
+    .titem{display:grid;grid-template-columns:76px 1fr;gap:10px;align-items:flex-start;min-height:44px}
+    .tstamp{display:flex;flex-direction:column;align-items:flex-start;gap:6px;font-size:12px;color:var(--muted)}
+    .tstamp .dot{width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 6px 14px rgba(11,102,255,0.12)}
+    .tcontent{background:#fbfdff;border:1px solid rgba(11,102,255,0.04);padding:10px;border-radius:10px;display:flex;flex-direction:column}
+    .tcontent .msg{font-size:13px;color:#073b6a;line-height:1.25}
+    .tcontent .meta{font-size:11px;color:var(--muted);margin-top:6px}
+
+    /* Messages */
+    .messages{font-family:monospace;background:#f1f7ff;padding:12px;border-radius:10px;color:#073b6a;flex:1;min-height:0;overflow:auto;white-space:pre-wrap}
+
+    /* Files viewer styles */
+    .files-view{display:flex;flex-direction:column;gap:12px}
+    .files-toolbar{display:flex;gap:12px;align-items:center}
+    .search{flex:1;padding:10px;border-radius:8px;border:1px solid rgba(11,102,255,0.08);font-size:14px}
+    .files-table{width:100%;border-collapse:collapse;margin-top:8px}
+    .files-table thead th{font-size:13px;text-align:left;padding:10px 8px;color:var(--muted);border-bottom:1px dashed rgba(11,102,255,0.06)}
+    .files-table tbody td{padding:12px 8px;border-bottom:1px solid rgba(11,102,255,0.03);vertical-align:top}
+    .file-name{font-weight:700;color:#08326b}
+    .file-snippet{font-size:13px;color:var(--muted);margin-top:6px}
+    .file-row{cursor:pointer}
+    .empty{padding:18px;color:var(--muted)}
+
+    /* Modal */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(3,10,25,0.45);display:flex;align-items:center;justify-content:center;z-index:9999}
+    .modal{background:#fff;border-radius:10px;padding:16px;max-width:92vw;max-height:86vh;overflow:auto;box-shadow:0 30px 60px rgba(2,10,40,0.2)}
+    .modal pre{white-space:pre-wrap;font-size:13px;line-height:1.35}
+
+    /* small helpers */
+    .row{display:flex;gap:12px;align-items:center}
+    .pill{background:rgba(11,102,255,0.06);color:var(--accent);padding:6px 10px;border-radius:999px;font-weight:700}
+    .link{color:var(--accent);text-decoration:none}
+    .btn-close{background:#f0f4ff;border:none;padding:8px 10px;border-radius:8px;cursor:pointer}
+    /* timeline scrollbar */
+    .timeline::-webkit-scrollbar{width:10px}
+    .timeline::-webkit-scrollbar-thumb{background:rgba(11,102,255,0.12);border-radius:8px}
+
+    /* ensure nav-actions visible even if some parent tries to clip */
+    .nav-actions{z-index:50}
+
+    /* small responsive tweak */
+    @media (max-width:980px){
+      .right{display:none}
+      main{padding:12px}
+    }
+  </style>
+</head>
+<body>
+  <header class="appbar">
+    <div class="brand" aria-hidden="true">
+      <svg width="42" height="42" viewBox="0 0 24 24" fill="none"><rect width="24" height="24" rx="6" fill="#0b66ff"></rect><path d="M7 12h10M7 7h10M7 17h10" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <div>
+        <h1>Meril Tender Extraction</h1>
+        <div class="tag">Live extraction dashboard</div>
+      </div>
+    </div>
+
+    <!-- NAV ACTIONS -->
+    <div class="nav-actions" role="navigation" aria-label="top actions">
+      <div class="status-small">Status: <strong id="stage_small">IDLE</strong></div>
+      <div class="status-small">Workers: <strong id="worker_count">0</strong></div>
+      <div class="status-small">Queue: <strong id="queue_len">-</strong></div>
+      <div class="status-small">Last update: <strong id="last_update">--:--:--</strong></div>
+
+      <button id="viewFilesBtn" class="btn secondary"
+        style="display:inline-flex !important; visibility:visible !important; opacity:1 !important; position:relative !important; z-index:9999 !important;">
+        View Files
+      </button>
+
+      <button id="refreshBtn" class="btn" style="display:inline-flex !important; position:relative; z-index:9999;">Refresh</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="left" id="leftColumn">
+      <!-- Dashboard -->
+      <div id="dashboardContent">
+        <div class="panel" style="flex:0.9">
+          <div class="section-title">Overall status</div>
+          <div id="message" style="font-weight:800;font-size:16px;color:#07214b">Waiting to start</div>
+          <div class="muted" style="margin-top:6px">The timeline shows page-level scraping & system messages. Use 'View Files' to inspect JSON outputs.</div>
+
+          <div style="margin-top:14px" class="kpis">
+            <div class="kpi">
+              <div class="label">Scraped records</div>
+              <div id="scraped" class="value">0</div>
+              <div class="muted" style="margin-top:6px">Pages: <span id="scraped_pages">0</span></div>
+            </div>
+            <div class="kpi">
+              <div class="label">PDFs downloaded</div>
+              <div id="download_done" class="value">0</div>
+              <div class="muted" style="margin-top:6px">of <span id="download_total">0</span></div>
+              <div class="progress"><div id="download_bar" class="bar"></div></div>
+            </div>
+            <div class="kpi">
+              <div class="label">JSONs extracted</div>
+              <div id="extract_done" class="value">0</div>
+              <div class="muted" style="margin-top:6px">of <span id="extract_total">0</span></div>
+              <div class="progress"><div id="extract_bar" class="bar"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel" style="flex:1.1">
+          <div class="section-title">Messages / Errors</div>
+          <div class="messages" id="messages"><pre>No messages yet.</pre></div>
+        </div>
+      </div>
+
+      <!-- Files viewer -->
+      <div id="filesView" style="display:none" class="panel files-view">
+        <div class="section-title">List of Extracted Files</div>
+        <div class="files-toolbar">
+          <input id="searchInput" class="search" placeholder="Search filename, source_file, or content..." />
+          <div class="row">
+            <button id="reloadFiles" class="btn secondary">Reload files</button>
+            <button id="closeFiles" class="btn">Close</button>
+          </div>
+        </div>
+
+        <div id="filesContainer" style="overflow:auto;max-height:62vh">
+          <table class="files-table" id="filesTable" role="table" aria-label="Files list">
+            <thead>
+              <tr><th>Filename</th><th>Source file</th><th>Pages</th><th>Snippet</th></tr>
+            </thead>
+            <tbody id="filesTbody">
+              <tr><td colspan="4" class="empty">Click "Reload files" to load FULLDATA/data.json (or wait until extraction completes).</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:8px">
+          <div class="muted" id="filesCount">0 files</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="right">
+      <div class="panel timeline-panel" style="flex:1">
+        <div class="section-title">Live timeline</div>
+        <div id="timeline" class="timeline" aria-live="polite" aria-atomic="true">
+          <div class="titem">
+            <div class="tstamp">
+              <div class="dot"></div>
+              <div class="time">--:--:--</div>
+            </div>
+            <div class="tcontent">
+              <div class="msg">No activity yet</div>
+              <div class="meta muted">Start the pipeline to see logs</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" style="flex:0.45">
+        <div class="section-title">Quick links</div>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          <a class="link" href="./status.json" target="_blank">Open status.json</a>
+          <a class="link" href="./download_map.csv" target="_blank">download_map.csv</a>
+          <a class="link" href="./FULLDATA/data.json" target="_blank">FULLDATA/data.json</a>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- JSON modal -->
+  <div id="modalRoot" style="display:none" class="modal-backdrop" role="dialog" aria-modal="true">
+    <div class="modal" role="document">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="font-weight:800" id="modalTitle">File JSON</div>
+        <div><button id="modalClose" class="btn-close">Close</button></div>
+      </div>
+      <pre id="modalContent">Loading...</pre>
+    </div>
+  </div>
+
+  <script>
+    // defensive insertion - if some script removes button, re-create it
+    (function ensureButton(){
+      const nav = document.querySelector('.nav-actions');
+      if(!nav) return;
+      if(!document.getElementById('viewFilesBtn')){
+        const btn = document.createElement('button');
+        btn.id = 'viewFilesBtn';
+        btn.className = 'btn secondary';
+        btn.textContent = 'View Files';
+        btn.style.cssText = 'display:inline-flex !important; visibility:visible !important; opacity:1 !important; position:relative !important; z-index:9999 !important;';
+        nav.insertBefore(btn, nav.children[nav.children.length-1] || null);
+      }
+    })();
+
+    // --------------------
+    // Core variables
+    // --------------------
+    const statusUrl = "./status.json";
+    const fullDataPath = "./FULLDATA/data.json";
+    let lastLinesHash = "";
+    let fullData = {};
+    let filesList = [];
+    const MAX_SHOW = 200;
+    const POLL_MS = 3000; // poll every 3s
+
+    // --------------------
+    // Helpers
+    // --------------------
+    function timeNow(){ return new Date().toLocaleTimeString(); }
+
+    function safeText(v){
+      try{ return String(v || ''); } catch(e){ return '';}
+    }
+
+    function makeTimelineItem(ts, txt, meta){
+      const item = document.createElement('div'); item.className='titem';
+      const stamp = document.createElement('div'); stamp.className='tstamp';
+      const dot = document.createElement('div'); dot.className='dot';
+      const time = document.createElement('div'); time.className='time'; time.textContent = ts;
+      stamp.appendChild(dot); stamp.appendChild(time);
+      const content = document.createElement('div'); content.className='tcontent';
+      const msgDiv = document.createElement('div'); msgDiv.className='msg'; msgDiv.textContent = txt;
+      content.appendChild(msgDiv);
+      if(meta){
+        const metaDiv = document.createElement('div'); metaDiv.className='meta muted'; metaDiv.textContent = meta;
+        content.appendChild(metaDiv);
+      } else {
+        content.appendChild(Object.assign(document.createElement('div'), {className:'meta muted'}));
+      }
+      item.appendChild(stamp); item.appendChild(content);
+      return item;
+    }
+
+    // --------------------
+    // Polling status & timeline
+    // --------------------
+    async function fetchJSON(path){
+      try{
+        const res = await fetch(path + '?_=' + Date.now(), {cache: 'no-store'});
+        if(!res.ok) return null;
+        return await res.json();
+      } catch(e){
+        return null;
+      }
+    }
+
+    async function getQueueLen(){
+      // optional API endpoint; fallback to status.json field
+      const api = '/api/redis_len';
+      try{
+        const res = await fetch(api + '?_=' + Date.now(), {cache: 'no-store'});
+        if(!res.ok) return null;
+        const j = await res.json();
+        if(j && typeof j.queue_len !== 'undefined') return j.queue_len;
+      }catch(e){}
+      return null;
+    }
+
+    async function pollStatus(){
+      try{
+        const s = await fetchJSON(statusUrl);
+        if(!s){
+          document.getElementById("stage_small").textContent = 'NO STATUS';
+          document.getElementById("message").textContent = 'status.json not available';
+          document.getElementById("last_update").textContent = timeNow();
+          setTimeout(pollStatus, POLL_MS);
+          return;
+        }
+
+        // Top meta
+        const stage = s.stage || s.status || 'idle';
+        document.getElementById("stage_small").textContent = (stage || 'idle').toString().toUpperCase();
+        document.getElementById("last_update").textContent = s.last_updated ? new Date(s.last_updated).toLocaleTimeString() : timeNow();
+
+        // KPIs
+        document.getElementById("message").textContent = s.message || s.summary || 'Waiting';
+        document.getElementById("scraped").textContent = s.scraped_records || s.total_rows || 0;
+        document.getElementById("scraped_pages").textContent = s.scraped_pages || 0;
+        document.getElementById("download_total").textContent = s.download_total || s.enqueued || 0;
+        document.getElementById("download_done").textContent = s.download_done || s.done_downloads || 0;
+        document.getElementById("extract_total").textContent = s.extract_total || s.enqueued || 0;
+        document.getElementById("extract_done").textContent = s.extract_done || s.done_extracts || 0;
+
+        // workers / queue
+        document.getElementById("worker_count").textContent = (typeof s.worker_count !== 'undefined') ? String(s.worker_count) : (s.workers_active ?? s.workers ?? '—');
+
+        // queue length: try API first then fallback to status field
+        const qlen_api = await getQueueLen();
+        const qlen = (qlen_api !== null) ? qlen_api : (typeof s.redis_queue_length !== 'undefined' ? s.redis_queue_length : (typeof s.queue_length !== 'undefined' ? s.queue_length : '—'));
+        document.getElementById("queue_len").textContent = String(qlen);
+
+        // bars
+        const pctD = (s.download_total ? Math.round((s.download_done||0)/s.download_total * 100) : (stage==='done' ? 100 : 0));
+        const pctE = (s.extract_total ? Math.round((s.extract_done||0)/s.extract_total * 100) : (stage==='done' ? 100 : 0));
+        document.getElementById("download_bar").style.width = pctD + "%";
+        document.getElementById("extract_bar").style.width = pctE + "%";
+
+        // Messages / errors
+        const errors = Array.isArray(s.errors) ? s.errors.slice(-12) : [];
+        const msgs = [];
+        if(s.message) msgs.push(s.message);
+        if(errors.length) msgs.push("Errors: " + errors.join(" ; "));
+        const customMsgs = Array.isArray(s.messages) ? s.messages.slice(-8) : [];
+        const allMsgs = customMsgs.concat(msgs);
+        document.getElementById("messages").innerHTML = "<pre>" + (allMsgs.length ? allMsgs.join("\n") : "No messages") + "</pre>";
+
+        // Timeline: support two shapes:
+        // 1) s.recent = [{bid_number, status, ts, error, json_path}] (preferred)
+        // 2) s.log = ["... messages ..."] (legacy)
+        let lines = [];
+        if(Array.isArray(s.recent) && s.recent.length){
+          // convert recent objects to strings but keep metadata
+          for(const r of s.recent.slice(-MAX_SHOW)){
+            const ts = r.ts ? (new Date(r.ts).toLocaleTimeString()) : timeNow();
+            const bid = r.bid_number || r.id || r.filename || r.name || '';
+            const st = r.status || r.state || '';
+            const extra = r.error ? `err: ${r.error}` : (r.json_path ? r.json_path : (r.message || ''));
+            const txt = bid ? `${bid} — ${st}` : `${st || r.message || 'event'}`;
+            lines.push({ts, txt, meta: extra});
+          }
+        } else if(Array.isArray(s.log) && s.log.length){
+          // log entries are strings: attempt to extract a timestamp if present
+          for(const entry of s.log.slice(-MAX_SHOW)){
+            const line = (entry || '').toString();
+            const m = line.match(/\[?(\d{1,2}:\d{2}:\d{2}(?:\s?[APMapm]{2})?)\]?/);
+            const ts = m ? m[1] : timeNow();
+            lines.push({ts, txt: line, meta: null});
+          }
+        } else if(s.message){
+          lines.push({ts: timeNow(), txt: s.message, meta: null});
+        }
+
+        // render timeline only if content changed
+        const newHash = JSON.stringify(lines.map(l => l.ts + '|' + l.txt + '|' + (l.meta||'')));
+        if(newHash !== lastLinesHash){
+          lastLinesHash = newHash;
+          const t = document.getElementById("timeline");
+          t.innerHTML = '';
+          // show newest at top (we preserve your original reverse order)
+          for(let i = lines.length - 1; i >= 0; i--){
+            const li = lines[i];
+            const elem = makeTimelineItem(li.ts, li.txt, li.meta);
+            t.appendChild(elem);
+          }
+        }
+      }catch(e){
+        console.debug("pollStatus error", e);
+      } finally {
+        setTimeout(pollStatus, POLL_MS);
+      }
+    }
+
+    // initial poll
+    pollStatus();
+
+    // --------------------
+    // Files viewer logic
+    // --------------------
+    const viewFilesBtn = document.getElementById('viewFilesBtn');
+    const filesView = document.getElementById('filesView');
+    const filesTbody = document.getElementById('filesTbody');
+    const filesCount = document.getElementById('filesCount');
+    const searchInput = document.getElementById('searchInput');
+    const reloadFiles = document.getElementById('reloadFiles');
+    const closeFiles = document.getElementById('closeFiles');
+    const dashboardContent = document.getElementById('dashboardContent');
+
+    function attachFileHandlers(){
+      const btn = document.getElementById('viewFilesBtn');
+      const refresh = document.getElementById('refreshBtn');
+      if(btn) btn.onclick = ()=>{ dashboardContent.style.display='none'; filesView.style.display='flex'; loadFullDataIfNeeded(); };
+      if(refresh) refresh.onclick = ()=>{ pollStatus(); if(filesView.style.display==='flex') loadFullData(true); };
+    }
+    attachFileHandlers();
+    const nav = document.querySelector('.nav-actions');
+    if(nav){
+      const obs = new MutationObserver(()=>attachFileHandlers());
+      obs.observe(nav, {childList:true, subtree:true});
+    }
+
+    async function loadFullDataIfNeeded(){ if(Object.keys(fullData).length===0) await loadFullData(); else renderFilesTable(); }
+
+    async function loadFullData(force=false){
+      try{
+        filesTbody.innerHTML = '<tr><td colspan="4" class="empty">Loading files...</td></tr>';
+        const r = await fetch(fullDataPath + '?_=' + Date.now(), {cache: "no-store"});
+        if(!r.ok){
+          filesTbody.innerHTML = '<tr><td colspan="4" class="empty">Could not load FULLDATA/data.json — file missing or server not reachable.</td></tr>';
+          filesCount.textContent='0 files';
+          return;
+        }
+        const parsed = await r.json();
+        fullData = parsed || {};
+        filesList = Object.keys(fullData).map(fn => ({ filename: fn, parsed: fullData[fn] }));
+        filesList.sort((a,b)=>a.filename.localeCompare(b.filename));
+        renderFilesTable();
+      }catch(err){
+        console.error(err);
+        filesTbody.innerHTML = '<tr><td colspan="4" class="empty">Error loading FULLDATA/data.json — see console.</td></tr>';
+        filesCount.textContent='0 files';
+      }
+    }
+
+    function snippetOf(text, n=160){
+      if(!text) return '';
+      const s = text.replace(/\s+/g,' ').trim();
+      return s.length <= n ? s : s.slice(0,n).trim() + '…';
+    }
+
+    function renderFilesTable(){
+      const q = (searchInput.value || '').trim().toLowerCase();
+      let shown = filesList;
+      if(q){
+        shown = filesList.filter(it => {
+          const p = it.parsed || {};
+          const combined = (p.combined_cleaned_text || '') + ' ' + (p.source_file || '') + ' ' + it.filename;
+          return combined.toLowerCase().includes(q) || it.filename.toLowerCase().includes(q);
+        });
+      }
+      filesTbody.innerHTML = '';
+      if(shown.length === 0){
+        filesTbody.innerHTML = '<tr><td colspan="4" class="empty">No files match that query.</td></tr>';
+        filesCount.textContent = '0 files';
+        return;
+      }
+      const toShow = shown.slice(0, 200);
+      for(const it of toShow){
+        const p = it.parsed || {};
+        const tr = document.createElement('tr');
+        tr.className = 'file-row';
+        tr.onclick = ()=> openFileModal(it.filename, p);
+        const tdName = document.createElement('td');
+        const nameDiv = document.createElement('div'); nameDiv.className='file-name'; nameDiv.textContent = it.filename;
+        const srcDiv = document.createElement('div'); srcDiv.className='file-snippet'; srcDiv.textContent = p.source_file ? `(${p.source_file})` : '';
+        tdName.appendChild(nameDiv); tdName.appendChild(srcDiv);
+        const tdSource = document.createElement('td'); tdSource.textContent = p.source_file || '—';
+        const tdPages = document.createElement('td'); tdPages.textContent = String(p.num_pages || (p.pages && p.pages.length) || 0);
+        const tdSnippet = document.createElement('td'); tdSnippet.textContent = snippetOf(p.combined_cleaned_text || (p.pages && p.pages.map(pg=>pg.cleaned_text||'').join(' ')) || '', 160);
+        tr.appendChild(tdName); tr.appendChild(tdSource); tr.appendChild(tdPages); tr.appendChild(tdSnippet);
+        filesTbody.appendChild(tr);
+      }
+      filesCount.textContent = `${shown.length} files (showing ${toShow.length})`;
+    }
+
+    searchInput && searchInput.addEventListener('input', ()=> renderFilesTable());
+    reloadFiles && reloadFiles.addEventListener('click', ()=> loadFullData(true));
+    closeFiles && closeFiles.addEventListener('click', ()=> { filesView.style.display='none'; dashboardContent.style.display='block'; });
+
+    // --------------------
+    // Modal
+    // --------------------
+    const modalRoot = document.getElementById('modalRoot');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalContent = document.getElementById('modalContent');
+    const modalClose = document.getElementById('modalClose');
+    modalClose && modalClose.addEventListener('click', ()=> { modalRoot.style.display='none'; });
+
+    function openFileModal(filename, parsed){
+      modalRoot.style.display='flex';
+      modalTitle.textContent = filename;
+      try{ modalContent.textContent = JSON.stringify(parsed, null, 2); } catch(e){ modalContent.textContent = String(parsed); }
+    }
+
+    // final defensive ensure button visible after small delay (in case CSS loaded later)
+    setTimeout(()=>{ const b=document.getElementById('viewFilesBtn'); if(b){ b.style.display='inline-flex'; b.style.visibility='visible'; b.style.opacity='1'; } }, 1200);
+  </script>
+</body>
+</html>

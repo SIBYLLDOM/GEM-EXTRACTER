@@ -1,0 +1,485 @@
+{
+  "recent": [
+    {
+      "status": "done",
+      "message": "Pipeline completed successfully!",
+      "ts": "2025-12-03T23:37:42.506626+05:30"
+    },
+    {
+      "status": "merge_done",
+      "message": "no_jsons_found",
+      "ts": "2025-12-03T23:37:42.452120+05:30"
+    },
+    {
+      "status": "producer_done",
+      "message": "100 tasks enqueued",
+      "ts": "2025-12-03T23:37:30.297667+05:30"
+    },
+    {
+      "status": "init",
+      "message": "Master runner started",
+      "ts": "2025-12-03T23:37:28.230247+05:30"
+    },
+    {
+      "status": "done",
+      "message": "Pipeline completed successfully!",
+      "ts": "2025-12-03T23:36:15.193636+05:30"
+    },
+    {
+      "status": "merge_done",
+      "message": "no_jsons_found",
+      "ts": "2025-12-03T23:36:15.141529+05:30"
+    },
+    {
+      "status": "producer_done",
+      "message": "100 tasks enqueued",
+      "ts": "2025-12-03T23:36:02.994461+05:30"
+    },
+    {
+      "status": "init",
+      "message": "Master runner started",
+      "ts": "2025-12-03T23:36:02.564544+05:30"
+    },
+    {
+      "bid_number": "GEM/2025/B/6779354",
+      "status": "started",
+      "ts": null,
+      "message": "started by worker2"
+    },
+    {
+      "bid_number": "GEM/2025/B/6878096",
+      "status": "done",
+      "ts": null,
+      "json_path": "OUTPUT\\GEM\\2025\\B\\6878096.json"
+    },
+    {
+      "bid_number": "GEM/2025/B/6817454",
+      "status": "started",
+      "ts": null,
+      "message": "started by worker3"
+    },
+    {
+      "bid_number": "GEM/2025/B/6878128",
+      "status": "done",
+      "ts": null,
+      "json_path": "OUTPUT\\GEM\\2025\\B\\6878128.json"
+    },
+    {
+      "bid_number": "GEM/2025/B/6860058",
+      "status": "started",
+      "ts": null,
+      "message": "started by worker1"
+    },
+    {
+      "bid_number": "GEM/2025/B/6878557",
+      "status": "done",
+      "ts": null,
+      "json_path": "OUTPUT\\GEM\\2025\\B\\6878557.json"
+    },
+    {
+      "bid_number": "GEM/2025/B/6860434",
+      "status": "started",
+      "ts": null,
+      "message": "started by worker4"
+    },
+    {
+      "bid_number": "GEM/2025/B/6882910",
+      "status": "done",
+      "ts": null,
+      "json_path": "OUTPUT\\GEM\\2025\\B\\6882910.json"
+    },
+    {
+      "bid_number": "GEM/2025/B/6878096",
+      "status": "started",
+      "ts": null,
+      "message": "started by worker2"
+    },
+    {
+      "bid_number": "GEM/2025/B/6884045",
+      "status": "done",
+      "ts": null,
+      "json_path": "OUTPUT\\GEM\\2025\\B\\6884045.json"
+    },
+    {
+      "bid_number": "GEM/2025/B/6878128",
+      "status": "started",
+      "ts": null,
+      "message": "started by worker3"
+    },
+    {
+      "bid_number": "GEM/2025/B/6897179",
+      "status": "done",
+      "ts": null,
+      "json_path": "OUTPUT\\GEM\\2025\\B\\6897179.json"
+    },
+    {
+      "bid_number": "GEM/2025/B/6878557",
+      "status": "started",
+      "ts": null,
+      "message": "started by worker1"
+    },
+    {
+      "bid_number": "GEM/2025/B/6883024",
+      "status": "done",
+      "ts": null,
+      "json_path": "OUTPUT\\GEM\\2025\\B\\6883024.json"
+    },
+    {
+      "bid_number": "GEM/2025/B/6882910",
+      "status": "started",
+      "ts": null,
+      "message": "started by worker4"
+    },
+    {
+      "bid_number": "GEM/2025/B/6792396",
+      "status": "done",
+      "ts": null,
+      "json_path": "OUTPUT\\GEM\\2025\\B\\6792396.json"
+    },
+    {
+      "bid_number": "GEM/2025/B/6883024",
+      "status": "started",
+      "ts": null,
+      "message": "started by worker1"
+    },
+    {
+      "bid_number": "GEM/2025/B/6703077",
+      "status": "done",
+      "ts": null,
+      "json_path": "OUTPUT\\GEM\\2025\\B\\6703077.json"
+    },
+    {
+      "bid_number": "GEM/2025/B/6884045",
+      "status": "started",
+      "ts": null,
+      "message": "started by worker2"
+    },
+    {
+      "bid_number": "GEM/2025/B/6896614",
+      "status": "done",
+      "ts": null,
+      "json_path": "OUTPUT\\GEM\\2025\\B\\6896614.json"
+    },
+    {
+      "bid_number": "GEM/2025/B/6897179",
+      "status": "started",
+      "ts": null,
+      "message": "started by worker3"
+    },
+    {
+      "bid_number": "GEM/2025/B/6896725",
+      "status": "done",
+      "ts": null,
+      "json_path": "OUTPUT\\GEM\\2025\\B\\6896725.json"
+    },
+    {
+      "bid_number": "GEM/2025/B/6703077",
+      "status": "started",
+      "ts": null,
+      "message": "started by worker1"
+    },
+    {
+      "bid_number": "GEM/2025/B/6896751",
+      "status": "done",
+      "ts": null,
+      "json_path": "OUTPUT\\GEM\\2025\\B\\6896751.json"
+    },
+    {
+      "bid_number": "GEM/2025/B/6792396",
+      "status": "started",
+      "ts": null,
+      "message": "started by worker4"
+    },
+    {
+      "bid_number": "GEM/2025/B/6896806",
+      "status": "done",
+      "ts": null,
+      "json_path": "OUTPUT\\GEM\\2025\\B\\6896806.json"
+    },
+    {
+      "bid_number": "GEM/2025/B/6896614",
+      "status": "started",
+      "ts": null,
+      "message": "started by worker2"
+    },
+    {
+      "bid_number": "GEM/2025/B/6896847",
+      "status": "done",
+      "ts": null,
+      "json_path": "OUTPUT\\GEM\\2025\\B\\6896847.json"
+    },
+    {
+      "bid_number": "GEM/2025/B/6896725",
+      "status": "started",
+      "ts": null,
+      "message": "started by worker3"
+    },
+    {
+      "bid_number": "GEM/2025/B/6897212",
+      "status": "done",
+      "ts": null,
+      "json_path": "OUTPUT\\GEM\\2025\\B\\6897212.json"
+    },
+    {
+      "bid_number": "GEM/2025/B/6896751",
+      "status": "started",
+      "ts": null,
+      "message": "started by worker1"
+    },
+    {
+      "bid_number": "GEM/2025/B/6888661",
+      "status": "done",
+      "ts": null,
+      "json_path": "OUTPUT\\GEM\\2025\\B\\6888661.json"
+    },
+    {
+      "bid_number": "GEM/2025/B/6896806",
+      "status": "started",
+      "ts": null,
+      "message": "started by worker4"
+    },
+    {
+      "bid_number": "GEM/2025/B/6880595",
+      "status": "done",
+      "ts": null,
+      "json_path": "OUTPUT\\GEM\\2025\\B\\6880595.json"
+    },
+    {
+      "bid_number": "GEM/2025/B/6849261",
+      "status": "done",
+      "ts": null,
+      "json_path": "OUTPUT\\GEM\\2025\\B\\6849261.json"
+    },
+    {
+      "bid_number": "GEM/2025/B/6897212",
+      "status": "started",
+      "ts": null,
+      "message": "started by worker3"
+    },
+    {
+      "bid_number": "GEM/2025/B/6897766",
+      "status": "done",
+      "ts": null,
+      "json_path": "OUTPUT\\GEM\\2025\\B\\6897766.json"
+    },
+    {
+      "bid_number": "GEM/2025/B/6849261",
+      "status": "started",
+      "ts": null,
+      "message": "started by worker2"
+    },
+    {
+      "bid_number": "GEM/2025/B/6891266",
+      "status": "done",
+      "ts": null,
+      "json_path": "OUTPUT\\GEM\\2025\\B\\6891266.json"
+    },
+    {
+      "bid_number": "GEM/2025/B/6880595",
+      "status": "started",
+      "ts": null,
+      "message": "started by worker4"
+    },
+    {
+      "bid_number": "GEM/2025/B/6897854",
+      "status": "done",
+      "ts": null,
+      "json_path": "OUTPUT\\GEM\\2025\\B\\6897854.json"
+    },
+    {
+      "bid_number": "GEM/2025/B/6891266",
+      "status": "started",
+      "ts": null,
+      "message": "started by worker2"
+    },
+    {
+      "bid_number": "GEM/2025/B/6897855",
+      "status": "done",
+      "ts": null,
+      "json_path": "OUTPUT\\GEM\\2025\\B\\6897855.json"
+    },
+    {
+      "bid_number": "GEM/2025/B/6897766",
+      "status": "started",
+      "ts": null,
+      "message": "started by worker3"
+    },
+    {
+      "bid_number": "GEM/2025/B/6897860",
+      "status": "done",
+      "ts": null,
+      "json_path": "OUTPUT\\GEM\\2025\\B\\6897860.json"
+    },
+    {
+      "bid_number": "GEM/2025/B/6897848",
+      "status": "started",
+      "ts": null,
+      "message": "started by worker1"
+    },
+    {
+      "bid_number": "GEM/2025/B/6897870",
+      "status": "done",
+      "ts": null,
+      "json_path": "OUTPUT\\GEM\\2025\\B\\6897870.json"
+    },
+    {
+      "bid_number": "GEM/2025/B/6897854",
+      "status": "started",
+      "ts": null,
+      "message": "started by worker4"
+    },
+    {
+      "bid_number": "GEM/2025/B/6897858",
+      "status": "done",
+      "ts": null,
+      "json_path": "OUTPUT\\GEM\\2025\\B\\6897858.json"
+    },
+    {
+      "bid_number": "GEM/2025/B/6897855",
+      "status": "started",
+      "ts": null,
+      "message": "started by worker2"
+    },
+    {
+      "bid_number": "GEM/2025/B/6895151",
+      "status": "done",
+      "ts": null,
+      "json_path": "OUTPUT\\GEM\\2025\\B\\6895151.json"
+    },
+    {
+      "bid_number": "GEM/2025/B/6897858",
+      "status": "started",
+      "ts": null,
+      "message": "started by worker4"
+    },
+    {
+      "bid_number": "GEM/2025/B/6904751",
+      "status": "done",
+      "ts": null,
+      "json_path": "OUTPUT\\GEM\\2025\\B\\6904751.json"
+    },
+    {
+      "bid_number": "GEM/2025/B/6897860",
+      "status": "started",
+      "ts": null,
+      "message": "started by worker3"
+    },
+    {
+      "bid_number": "GEM/2025/B/6813906",
+      "status": "done",
+      "ts": null,
+      "json_path": "OUTPUT\\GEM\\2025\\B\\6813906.json"
+    },
+    {
+      "bid_number": "GEM/2025/B/6897870",
+      "status": "started",
+      "ts": null,
+      "message": "started by worker1"
+    },
+    {
+      "bid_number": "GEM/2025/B/6760472",
+      "status": "done",
+      "ts": null,
+      "json_path": "OUTPUT\\GEM\\2025\\B\\6760472.json"
+    },
+    {
+      "bid_number": "GEM/2025/B/6895151",
+      "status": "started",
+      "ts": null,
+      "message": "started by worker2"
+    },
+    {
+      "bid_number": "GEM/2025/B/6810962",
+      "status": "done",
+      "ts": null,
+      "json_path": "OUTPUT\\GEM\\2025\\B\\6810962.json"
+    },
+    {
+      "bid_number": "GEM/2025/B/6904751",
+      "status": "started",
+      "ts": null,
+      "message": "started by worker4"
+    },
+    {
+      "bid_number": "GEM/2025/B/6796231",
+      "status": "done",
+      "ts": null,
+      "json_path": "OUTPUT\\GEM\\2025\\B\\6796231.json"
+    },
+    {
+      "bid_number": "GEM/2025/B/6760472",
+      "status": "started",
+      "ts": null,
+      "message": "started by worker1"
+    },
+    {
+      "bid_number": "GEM/2025/B/6810897",
+      "status": "done",
+      "ts": null,
+      "json_path": "OUTPUT\\GEM\\2025\\B\\6810897.json"
+    },
+    {
+      "bid_number": "GEM/2025/B/6810962",
+      "status": "started",
+      "ts": null,
+      "message": "started by worker2"
+    },
+    {
+      "bid_number": "GEM/2025/B/6797259",
+      "status": "done",
+      "ts": null,
+      "json_path": "OUTPUT\\GEM\\2025\\B\\6797259.json"
+    },
+    {
+      "bid_number": "GEM/2025/B/6796231",
+      "status": "started",
+      "ts": null,
+      "message": "started by worker4"
+    },
+    {
+      "bid_number": "GEM/2025/B/6836182",
+      "status": "done",
+      "ts": null,
+      "json_path": "OUTPUT\\GEM\\2025\\B\\6836182.json"
+    },
+    {
+      "bid_number": "GEM/2025/B/6797259",
+      "status": "started",
+      "ts": null,
+      "message": "started by worker2"
+    },
+    {
+      "bid_number": "GEM/2025/B/6820846",
+      "status": "done",
+      "ts": null,
+      "json_path": "OUTPUT\\GEM\\2025\\B\\6820846.json"
+    },
+    {
+      "bid_number": "GEM/2025/B/6813906",
+      "status": "started",
+      "ts": null,
+      "message": "started by worker3"
+    },
+    {
+      "bid_number": "GEM/2025/B/6827021",
+      "status": "done",
+      "ts": null,
+      "json_path": "OUTPUT\\GEM\\2025\\B\\6827021.json"
+    },
+    {
+      "bid_number": "GEM/2025/B/6810897",
+      "status": "started",
+      "ts": null,
+      "message": "started by worker1"
+    }
+  ],
+  "last_updated": "2025-12-03T23:37:42.506651+05:30",
+  "in_progress": -2,
+  "redis_queue_length": 0,
+  "processed": 171,
+  "done": 170,
+  "stage": "done",
+  "enqueued": 100,
+  "message": "producer enqueued 100",
+  "workers_active": 4
+}

@@ -1,35 +1,53 @@
 #!/usr/bin/env python3
 """
-master_extraction.py
+master_extraction.py (updated)
 
 Orchestrates:
  - starts a tiny HTTP server serving ./dashboard (index.html + status.json)
- - runs DataExtraction.run_and_save(...) to produce gem_full_fixed.csv
- - runs url_pdf_extraction.run_pipeline(...), passing status file path so it can update progress
+ - optionally starts N consumer worker processes (workers/consumer.py)
+ - runs DataExtraction.run_and_save(...) to produce gem_full_fixed.csv and enqueue rows
+ - keeps dashboard server and workers running until interrupted
 """
+
 import os
 import sys
 import time
 import json
 import logging
+import argparse
 import threading
+import subprocess
+import signal
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 
 # ensure project root on path
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-# modules (must exist in project)
-import DataExtraction
-import url_pdf_extraction
+# imports from project
+try:
+    import DataExtraction
+except Exception:
+    DataExtraction = None
 
-# dashboard config
+from config import WORKER_ID
+
+# Dashboard config
 DASHBOARD_DIR = os.path.join(HERE, "dashboard")
 STATUS_JSON = os.path.join(DASHBOARD_DIR, "status.json")
-HTTP_PORT = 8000  # you can change this
+HTTP_PORT = 8000  # default; can be overridden via CLI
 
-def init_dashboard():
-    os.makedirs(DASHBOARD_DIR, exist_ok=True)
+
+LOG = logging.getLogger("master")
+LOG.setLevel(logging.INFO)
+if not LOG.handlers:
+    h = logging.StreamHandler()
+    h.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+    LOG.addHandler(h)
+
+
+def init_dashboard(status_path: str):
+    os.makedirs(os.path.dirname(status_path), exist_ok=True)
     # initial status (include log array)
     status = {
         "stage": "idle",            # idle, scraping, downloading, extracting, done, error
@@ -43,93 +61,172 @@ def init_dashboard():
         "errors": [],
         "log": []
     }
-    with open(STATUS_JSON, "w", encoding="utf-8") as f:
+    with open(status_path, "w", encoding="utf-8") as f:
         json.dump(status, f, indent=2)
 
-def write_status(updates: dict):
+
+def write_status(status_path: str, updates: dict):
     # read-modify-write (best-effort)
     try:
-        with open(STATUS_JSON, "r", encoding="utf-8") as f:
-            s = json.load(f)
-    except Exception:
         s = {}
-    log = s.get("log", [])
-    msg = updates.get("message")
-    if msg:
-        log.append(msg)
-        log = log[-300:]
-        updates["log"] = log
-    s.update(updates)
-    with open(STATUS_JSON, "w", encoding="utf-8") as f:
-        json.dump(s, f, indent=2)
+        if os.path.exists(status_path):
+            try:
+                with open(status_path, "r", encoding="utf-8") as f:
+                    s = json.load(f)
+            except Exception:
+                s = {}
+        log = s.get("log", [])
+        msg = updates.get("message")
+        if msg:
+            # include a timestamp on message for timeline
+            tmsg = f"{time.strftime('%H:%M:%S')} - {msg}"
+            log.append(tmsg)
+            log = log[-500:]
+            updates["log"] = log
+        s.update(updates)
+        with open(status_path, "w", encoding="utf-8") as f:
+            json.dump(s, f, indent=2)
+    except Exception:
+        # best-effort only
+        pass
 
-def start_dashboard_server(port=HTTP_PORT):
-    # serve the dashboard folder
-    os.chdir(DASHBOARD_DIR)
+
+def start_dashboard_server(port: int = HTTP_PORT, serve_dir: str = DASHBOARD_DIR):
+    """
+    Start a simple HTTP server to serve the dashboard folder.
+    Returns (httpd_instance, thread)
+    """
+    # ensure directory exists
+    os.makedirs(serve_dir, exist_ok=True)
+    # create initial status.json if missing
+    if not os.path.exists(os.path.join(serve_dir, "status.json")):
+        init_dashboard(os.path.join(serve_dir, "status.json"))
+
+    # change directory for the server thread only
+    cwd = os.getcwd()
+    os.chdir(serve_dir)
     handler = SimpleHTTPRequestHandler
     httpd = ThreadingHTTPServer(("0.0.0.0", port), handler)
     t = threading.Thread(target=httpd.serve_forever, daemon=True)
     t.start()
+    LOG.info("Dashboard server started -> http://localhost:%s/ (serving %s)", port, serve_dir)
+    # restore working dir
+    os.chdir(cwd)
     return httpd, t
 
-def main():
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    print("MASTER: Initializing dashboard...")
-    init_dashboard()
 
-    httpd, thread = start_dashboard_server(HTTP_PORT)
-    print(f"MASTER: Dashboard server started -> http://localhost:{HTTP_PORT}/")
-    write_status({"stage": "starting", "message": "Dashboard up — starting pipeline"})
+def spawn_workers(num_workers: int, extra_args: list = None):
+    """
+    Spawn multiple worker subprocesses (python workers/consumer.py).
+    Returns list of subprocess.Popen objects.
+    """
+    procs = []
+    extra_args = extra_args or []
+    for i in range(num_workers):
+        # create a distinct consumer name for each worker
+        worker_name = f"{WORKER_ID}-w{i+1}"
+        cmd = [sys.executable, os.path.join(HERE, "workers", "consumer.py"),
+               "--mode", "list",
+               "--stream-group", "pdf_consumers",
+               "--stream-consumer", worker_name,
+               "--download-timeout", "60"]
+        # add any extra_args passed from CLI
+        cmd.extend(extra_args)
+        LOG.info("Starting worker: %s", " ".join(cmd))
+        # start process (stdout/stderr inherited)
+        p = subprocess.Popen(cmd)
+        procs.append(p)
+        # small stagger to avoid thundering startup
+        time.sleep(0.2)
+    return procs
 
-    try:
-        # 1) Run scraper (DataExtraction) and pass status path to capture page-level logs
-        write_status({"stage": "scraping", "message": "Running scraper (DataExtraction)...", "scraped_records": 0})
-        csv_path, total_records, total_pages = DataExtraction.run_and_save(output_csv="gem_full_fixed.csv", headless=True, status_path=STATUS_JSON)
-        write_status({
-            "stage": "scraping_done",
-            "message": f"Scraping done. Saved {csv_path}",
-            "scraped_records": total_records,
-            "scraped_pages": total_pages
-        })
 
-        # 2) Run url_pdf_extraction pipeline; pass status path so it can update progress
-        write_status({"stage": "downloading", "message": "Starting downloads...", "download_total": 0, "download_done": 0})
-        res = url_pdf_extraction.run_pipeline(
-            csv_path=csv_path,
-            pdf_folder="PDF",
-            out_folder="OUTPUT",
-            fulldata_folder="FULLDATA",
-            download_workers=8,
-            download_timeout=60,
-            extract_workers=None,
-            no_ocr=False,
-            skip_download=False,
-            download_only=False,
-            log_level="info",
-            status_path=STATUS_JSON  # <-- pass status file so module can update
-        )
-
-        # final status
-        if res.get("status") == "done":
-            write_status({"stage": "done", "message": "Pipeline completed successfully", "full_data_path": res.get("full_data_path")})
-            print("MASTER: Pipeline completed successfully.")
-        else:
-            write_status({"stage": "error", "message": f"Pipeline finished with status: {res.get('status')}"})
-            print("MASTER: Pipeline finished with non-done status:", res.get("status"))
-
-    except Exception as e:
-        logging.exception("MASTER: Pipeline failed: %s", e)
-        write_status({"stage": "error", "message": f"Exception: {e}", "errors": [str(e)]})
-    finally:
-        # keep server running for a short while so user can view final page
-        print(f"MASTER: Dashboard available at http://localhost:{HTTP_PORT}/ — server will keep running while this process is alive.")
+def terminate_procs(procs):
+    for p in procs:
         try:
-            # wait until interrupted
-            while True:
-                time.sleep(1)
-        except KeyboardInterrupt:
-            print("MASTER: Shutting down dashboard server...")
+            LOG.info("Terminating pid=%s", getattr(p, "pid", None))
+            p.terminate()
+        except Exception:
+            pass
+    # give them a moment to exit gracefully
+    time.sleep(1.0)
+    # force kill if still alive
+    for p in procs:
+        if p.poll() is None:
+            try:
+                LOG.info("Killing pid=%s", getattr(p, "pid", None))
+                p.kill()
+            except Exception:
+                pass
+
+
+def main(args):
+    # Ensure dashboard exists and status.json initialized
+    init_dashboard(args.status_path)
+
+    # Start dashboard HTTP server
+    httpd, server_thread = start_dashboard_server(port=args.port, serve_dir=os.path.dirname(args.status_path))
+
+    # optionally spawn worker processes
+    workers = []
+    if args.workers and args.workers > 0:
+        workers = spawn_workers(args.workers, extra_args=args.worker_extra_args or [])
+        write_status(args.status_path, {"message": f"Started {len(workers)} worker(s)", "stage": "workers_started"})
+
+    # Run scraper (DataExtraction) if module present
+    if DataExtraction is None:
+        LOG.error("DataExtraction module not importable. Make sure DataExtraction.py exists and is on PYTHONPATH.")
+        write_status(args.status_path, {"stage": "error", "message": "DataExtraction missing"})
+        # keep servers/workers alive so you can debug
+    else:
+        try:
+            write_status(args.status_path, {"stage": "scraping", "message": "Starting scraper (DataExtraction)...", "scraped_records": 0})
+            # run scraper; it will enqueue bids as it scrapes
+            csv_path, total_records, total_pages = DataExtraction.run_and_save(
+                output_csv="gem_full_fixed.csv",
+                headless=args.headless,
+                status_path=args.status_path,
+                enqueue=not args.no_enqueue,
+                save_csv=not args.no_csv
+            )
+            LOG.info("Scraping finished: csv=%s records=%s pages=%s", csv_path, total_records, total_pages)
+            write_status(args.status_path, {"stage": "scraping_done", "message": f"Scraping finished. {total_records} records", "scraped_records": total_records, "scraped_pages": total_pages})
+        except Exception as e:
+            LOG.exception("Scraper failed: %s", e)
+            write_status(args.status_path, {"stage": "error", "message": f"Scraper exception: {e}", "errors": [str(e)]})
+
+    # Now pipeline is running with workers; wait until interrupted
+    try:
+        write_status(args.status_path, {"stage": "running", "message": "Pipeline running. Press Ctrl+C to stop."})
+        LOG.info("Pipeline running. Press Ctrl+C to stop.")
+        while True:
+            time.sleep(1)
+            # could add health checks here (e.g., check workers' p.poll or status.json)
+    except KeyboardInterrupt:
+        LOG.info("Interrupted by user; shutting down...")
+    finally:
+        # terminate worker subprocesses
+        if workers:
+            write_status(args.status_path, {"message": "Shutting down workers...", "stage": "stopping"})
+            terminate_procs(workers)
+        # shutdown http server
+        try:
             httpd.shutdown()
+            LOG.info("Dashboard server shut down.")
+        except Exception:
+            pass
+        write_status(args.status_path, {"stage": "stopped", "message": "Master stopped"})
+
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Master orchestrator: dashboard + optional workers + scrape-and-enqueue")
+    parser.add_argument("--workers", type=int, default=0, help="Number of consumer worker processes to spawn (default 0)")
+    parser.add_argument("--port", type=int, default=8000, help="Dashboard HTTP port (default 8000)")
+    parser.add_argument("--headless", action="store_true", help="Run Playwright in headless mode for scraping")
+    parser.add_argument("--no-enqueue", action="store_true", help="Run scraper but do not enqueue to Redis/DB (CSV-only)")
+    parser.add_argument("--no-csv", action="store_true", help="Do not save CSV backup")
+    parser.add_argument("--status-path", default=STATUS_JSON, help="Path to status.json for dashboard")
+    parser.add_argument("--worker-extra-args", nargs="*", help="Extra CLI args to append to each worker process")
+    args = parser.parse_args()
+
+    main(args)

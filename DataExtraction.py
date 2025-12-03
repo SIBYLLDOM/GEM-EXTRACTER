@@ -5,14 +5,37 @@ import time
 import re
 import os
 import json
+import logging
+from typing import Optional, List, Dict, Any
+
+from config import WORKER_ID
 
 BASE_URL = "https://bidplus.gem.gov.in"
 
-# LIMIT SCRAPING TO FIRST 2 PAGES
-MAX_PAGES = 2
+# When None -> no page limit (scrape all pages). Set to an int for testing.
+MAX_PAGES = None
 
-# --- status helper (best-effort, same format used by url_pdf_extraction) ---
-def write_status_file(status_path: str, updates: dict):
+# Configure logging for this module
+LOG = logging.getLogger("DataExtraction")
+if not LOG.handlers:
+    h = logging.StreamHandler()
+    h.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+    LOG.addHandler(h)
+LOG.setLevel(logging.INFO)
+
+# Try to import producer.enqueue_bid; if unavailable, we'll fall back to CSV-only mode.
+try:
+    from workers.producer import enqueue_bid
+    _HAS_PRODUCER = True
+    LOG.info("Producer available: will enqueue bids to DB/Redis.")
+except Exception:
+    enqueue_bid = None
+    _HAS_PRODUCER = False
+    LOG.warning("workers.producer not available. Running scraper in CSV-only mode.")
+
+
+# --- status helper (best-effort, same format used by older pipeline) ---
+def write_status_file(status_path: Optional[str], updates: dict):
     if not status_path:
         return
     try:
@@ -27,7 +50,9 @@ def write_status_file(status_path: str, updates: dict):
         log = s.get("log", [])
         msg = updates.get("message")
         if msg:
-            log.append(msg)
+            # include a timestamp in the message for timeline readability
+            tmsg = f"{time.strftime('%H:%M:%S')} - {msg}"
+            log.append(tmsg)
             log = log[-200:]
             updates["log"] = log
 
@@ -37,7 +62,6 @@ def write_status_file(status_path: str, updates: dict):
             json.dump(s, f, indent=2)
     except Exception:
         pass
-
 
 
 async def apply_sorting(page, status_path=None):
@@ -89,10 +113,40 @@ async def extract_total_counts(page, status_path=None):
     return total_records, total_pages
 
 
+async def _enqueue_row_async(row: Dict[str, Any], status_path: Optional[str] = None):
+    """
+    Run enqueue_bid in a thread to avoid blocking the event loop.
+    """
+    if not _HAS_PRODUCER or enqueue_bid is None:
+        # Producer not available; nothing to do
+        return None
+    try:
+        # Enqueue in a thread so it doesn't block Playwright loop
+        res = await asyncio.to_thread(
+            enqueue_bid,
+            bid_number=row.get("Bid Number"),
+            detail_url=row.get("Detail URL"),
+            page=row.get("Page"),
+            items=row.get("Items"),
+            quantity=row.get("Quantity"),
+            department=row.get("Department"),
+            start_date=row.get("Start Date"),
+            end_date=row.get("End Date"),
+            redis_mode="list"
+        )
+        # update status file lightly
+        write_status_file(status_path, {"message": f"Enqueued bid {row.get('Bid Number')} (db_id={res.get('bid_id')})", "stage": "scraping"})
+        return res
+    except Exception as e:
+        LOG.exception("enqueue_bid failed for %s: %s", row.get("Bid Number"), e)
+        write_status_file(status_path, {"message": f"Failed to enqueue {row.get('Bid Number')}: {e}", "stage": "scraping"})
+        return None
 
-async def scrape_single_page(page, page_no, status_path=None):
+
+async def scrape_single_page(page, page_no, status_path=None, enqueue=True, collect_list: Optional[List[Dict]] = None):
     write_status_file(status_path, {"message": f"🔵 Scraping PAGE {page_no}", "stage": "scraping", "scraped_pages": page_no})
 
+    # scroll to trigger lazy-load cards
     for _ in range(5):
         await page.mouse.wheel(0, 3000)
         await asyncio.sleep(0.3)
@@ -127,7 +181,7 @@ async def scrape_single_page(page, page_no, status_path=None):
             end_el = await c.query_selector("span.end_date")
             end_date = (await end_el.inner_text()) if end_el else ""
 
-            results.append({
+            row = {
                 "Page": page_no,
                 "Bid Number": bid_no,
                 "Detail URL": detail_url,
@@ -136,15 +190,29 @@ async def scrape_single_page(page, page_no, status_path=None):
                 "Department": department,
                 "Start Date": start_date,
                 "End Date": end_date
-            })
-        except:
-            pass
+            }
+
+            results.append(row)
+            if collect_list is not None:
+                collect_list.append(row)
+
+            # enqueue immediately (non-blocking via asyncio.to_thread)
+            if enqueue:
+                # schedule enqueue but don't await synchronously here (fire-and-forget)
+                # we still await the enqueuing to capture errors in status file, but if
+                # you prefer pure fire-and-forget, remove the await.
+                await _enqueue_row_async(row, status_path=status_path)
+
+        except Exception:
+            # ignore individual-card errors but log them
+            LOG.exception("Error while parsing a card on page %s", page_no)
+            write_status_file(status_path, {"message": f"Error parsing card on page {page_no}", "stage": "scraping"})
+            continue
 
     return results
 
 
-
-async def scrape_all(headless=False, status_path=None):
+async def scrape_all(headless=False, status_path=None, enqueue=True, save_csv=True):
     async with async_playwright() as p:
         browser = await p.chromium.launch(
             channel="chrome",
@@ -156,23 +224,27 @@ async def scrape_all(headless=False, status_path=None):
 
         total_records, total_pages = await extract_total_counts(page, status_path=status_path)
 
-        # LIMIT to MAX_PAGES
-        total_pages = min(total_pages, MAX_PAGES)
+        # If MAX_PAGES is set (int), limit; otherwise scrape all pages.
+        if isinstance(MAX_PAGES, int) and MAX_PAGES > 0:
+            total_pages = min(total_pages, MAX_PAGES)
+            write_status_file(status_path, {
+                "message": f"Starting scraping: LIMIT = first {MAX_PAGES} pages",
+                "stage": "scraping"
+            })
+        else:
+            write_status_file(status_path, {
+                "message": f"Starting scraping: ALL {total_pages} pages",
+                "stage": "scraping"
+            })
 
-        write_status_file(status_path, {
-            "message": f"Starting scraping: LIMIT = first {MAX_PAGES} pages",
-            "stage": "scraping"
-        })
-
-        all_data = []
+        all_data: List[Dict[str, Any]] = []
 
         # scrape page 1
         page_no = 1
-        page_results = await scrape_single_page(page, page_no, status_path=status_path)
-        all_data.extend(page_results)
-        write_status_file(status_path, {"scraped_records": len(all_data)})
+        page_results = await scrape_single_page(page, page_no, status_path=status_path, enqueue=enqueue, collect_list=all_data)
+        write_status_file(status_path, {"scraped_records": len(all_data), "scraped_pages": page_no})
 
-        # pages 2..MAX_PAGES
+        # pages 2..total_pages
         while page_no < total_pages:
             next_btn = await page.query_selector("#light-pagination a.next")
             if not next_btn:
@@ -184,34 +256,43 @@ async def scrape_all(headless=False, status_path=None):
             await next_btn.click()
             await asyncio.sleep(2)
 
-            page_results = await scrape_single_page(page, page_no, status_path=status_path)
-            all_data.extend(page_results)
-            write_status_file(status_path, {"scraped_records": len(all_data)})
+            page_results = await scrape_single_page(page, page_no, status_path=status_path, enqueue=enqueue, collect_list=all_data)
+            write_status_file(status_path, {"scraped_records": len(all_data), "scraped_pages": page_no})
 
         await browser.close()
 
         write_status_file(status_path, {"message": f"Scraping complete. Total scraped: {len(all_data)}", "stage": "scraped"})
 
+        # optionally save CSV as backup
+        if save_csv:
+            try:
+                out_path = os.path.join(os.getcwd(), "gem_full_fixed.csv")
+                pd.DataFrame(all_data).to_csv(out_path, index=False)
+                write_status_file(status_path, {"message": f"Saved CSV backup: {out_path}", "stage": "scraped", "scraped_records": len(all_data)})
+            except Exception:
+                LOG.exception("Failed to save CSV backup")
+                write_status_file(status_path, {"message": "Failed to save CSV backup", "stage": "scraped"})
+
         return all_data, total_records, total_pages
 
 
-
-def run_and_save(output_csv="gem_full_fixed.csv", headless=False, status_path=None):
+def run_and_save(output_csv="gem_full_fixed.csv", headless=False, status_path=None, enqueue=True, save_csv=True):
     start = time.time()
 
-    write_status_file(status_path, {"stage": "starting", "message": f"Starting scraper (limit {MAX_PAGES} pages)..."})
+    lim_text = f"limit {MAX_PAGES} pages" if isinstance(MAX_PAGES, int) and MAX_PAGES > 0 else "no page limit (all pages)"
+    write_status_file(status_path, {"stage": "starting", "message": f"Starting scraper ({lim_text})..."})
 
-    data, total_records, total_pages = asyncio.run(scrape_all(headless=headless, status_path=status_path))
+    data, total_records, total_pages = asyncio.run(scrape_all(headless=headless, status_path=status_path, enqueue=enqueue, save_csv=save_csv))
 
     out_path = os.path.join(os.getcwd(), output_csv)
-    pd.DataFrame(data).to_csv(out_path, index=False)
-
-    write_status_file(status_path, {
-        "stage": "scraping_done",
-        "message": f"Saved CSV: {out_path}",
-        "scraped_records": len(data),
-        "scraped_pages": total_pages
-    })
+    # CSV already saved inside scrape_all if save_csv True; this keeps compatibility
+    if save_csv and os.path.exists(out_path):
+        write_status_file(status_path, {
+            "stage": "scraping_done",
+            "message": f"Saved CSV: {out_path}",
+            "scraped_records": len(data),
+            "scraped_pages": total_pages
+        })
 
     print("\n-------------------------------------")
     print(f"SCRAPED RECORDS: {len(data)}")
@@ -219,11 +300,19 @@ def run_and_save(output_csv="gem_full_fixed.csv", headless=False, status_path=No
     print(f"PAGES SCRAPED: {total_pages}")
     print("-------------------------------------")
     print(f"Time: {round(time.time() - start, 2)} sec")
-    print(f"Saved: {out_path}")
+    if save_csv:
+        print(f"Saved: {out_path}")
 
     return out_path, total_records, total_pages
 
 
-
 if __name__ == "__main__":
-    run_and_save(output_csv="gem_full_fixed.csv", headless=False, status_path=None)
+    # simple CLI
+    import argparse
+    p = argparse.ArgumentParser(description="Scrape GeM all-bids and enqueue to pipeline (DataExtraction upgraded).")
+    p.add_argument("--headless", action="store_true", help="Run browser headless")
+    p.add_argument("--no-enqueue", action="store_true", help="Do not enqueue to Redis/DB (CSV-only)")
+    p.add_argument("--no-csv", action="store_true", help="Do not write CSV backup")
+    args = p.parse_args()
+
+    run_and_save(output_csv="gem_full_fixed.csv", headless=args.headless, status_path=None, enqueue=(not args.no_enqueue), save_csv=(not args.no_csv))
